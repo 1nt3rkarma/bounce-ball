@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
 public class Level : MonoBehaviour
 {
@@ -22,8 +23,9 @@ public class Level : MonoBehaviour
 
     #region Статические
 
-    public static Level instance;
-    public static Player player { get => Player.instance; }
+    public static Level instance { get; private set; }
+    public static Player player => Player.instance;
+
     public static int level
     {
         get => PlayerPrefs.GetInt("Level", 1);
@@ -42,6 +44,12 @@ public class Level : MonoBehaviour
 
     #endregion
 
+    #region События
+
+    public UnityEvent onLevelRestart;
+
+    #endregion
+
     void Awake()
     {
         instance = this;
@@ -50,6 +58,11 @@ public class Level : MonoBehaviour
     void Start ()
     {
         Restart();
+    }
+
+    void OnDestroy()
+    {
+        
     }
 
     public static GameObject CreateEmptyFloor(Vector3 atPosition)
@@ -160,6 +173,8 @@ public class Level : MonoBehaviour
         Generate(level);
         player.Init();
         VisualManager.ClearConfetti();
+
+        onLevelRestart.Invoke();
     }
 
     public void NextLevel()
@@ -170,7 +185,7 @@ public class Level : MonoBehaviour
 
     public void ClearSave()
     {
-        Player.highScore = 0;
+        Player.HighScore = 0;
         Level.level = 1;
     }
 }

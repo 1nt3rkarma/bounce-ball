@@ -1,11 +1,15 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
+
+[System.Serializable]
+public class ScoreEvent : UnityEvent<int> { }
 
 public class Player : MonoBehaviour
 {
-    public static Player instance;
+    public static Player instance { get; private set; }
 
     public float sensitivityKeyboard = 100;
     public float sensitivityTouch = 45;
@@ -29,29 +33,44 @@ public class Player : MonoBehaviour
     public TrailRenderer trailRenderer;
     
     //Счет игрока
-    public static int score = 0;
-    public static int highScore
+    private static int score = 0;
+    public static int Score
+    {
+        get => score;
+
+        set
+        {
+            instance?.onScoreChanged.Invoke(value);
+            score = value;
+        }
+    }
+    public static int HighScore
     {
         get => PlayerPrefs.GetInt("HighScore", 0);
 
         set => PlayerPrefs.SetInt("HighScore", value);
     }
 
-    static bool secterFound
+    static bool SecterFound
     {
         get => PlayerPrefs.GetInt("secterFound", 0) == 1 ? true : false;
          
         set => PlayerPrefs.SetInt("secterFound", value ? 1 : 0);
     }
 
-    [Tooltip("Элементы интерфейса игрока")]
-    public PlayerUI playerUI;
+    public ScoreEvent onScoreChanged;
+    public UnityEvent onPlayerVictory;
+    public UnityEvent onPlayerDefeat;
+    public UnityEvent onPlayerFall;
 
     void Awake()
     {
         instance = this;
+
         bonus = bonusMin;
         fallSpeed = fallSpeedMin;
+
+        //onScoreChanged = new ScoreEvent();
     }
 
     void Update()
@@ -117,20 +136,6 @@ public class Player : MonoBehaviour
     {
         isActive = true;
 
-        #region Обновление интерфейса
-
-        playerUI.progressBar.maxValue = Level.floorCount - 1;
-        playerUI.progressBar.value = 0;
-        playerUI.level.text = Level.level.ToString();
-        playerUI.nextLevel.text = Mathf.Clamp(Level.level + 1,1,Level.levelMax).ToString();
-
-        playerUI.vicrotyUI.SetActive(false);
-        playerUI.defeatUI.SetActive(false);
-
-        playerUI.scoreText.text = "" + score;
-
-        #endregion
-
         // Задание цветовой схемы
         VisualManager.SwitchColors();
 
@@ -146,11 +151,10 @@ public class Player : MonoBehaviour
     {
         score = 0;
 
-        playerUI.highScoreText.text = highScore.ToString();
+        onPlayerDefeat.Invoke();
 
         AudioManager.PlayDefeatJingle();
 
-        playerUI.defeatUI.SetActive(true);
         Stop();
     }
 
@@ -160,7 +164,7 @@ public class Player : MonoBehaviour
 
         AudioManager.PlayVictoryJingle();
 
-        playerUI.vicrotyUI.SetActive(true);
+        onPlayerVictory.Invoke();
         Stop();
     }
 
@@ -226,20 +230,18 @@ public class Player : MonoBehaviour
     {
         animator.speed = 0;
 
-
         if (isFalling && bonus < bonusMax)
             bonus++;
-        score += bonus;
+        Score += bonus;
 
-        playerUI.scoreText.text = score.ToString();
-        playerUI.progressBar.value += 1;
-
-        if (score > highScore)
-            highScore = score;
+        if (Score > HighScore)
+            HighScore = Score;
 
         fallTargetHeight = fromFloor.position.y - 1;
         isFalling = true;
         DestroyFloor(fromFloor);
+
+        onPlayerFall.Invoke();
     }
 
     void StopFall()
@@ -276,10 +278,10 @@ public class Player : MonoBehaviour
 
     public void OnSecretClick()
     {
-        if (!secterFound)
+        if (!SecterFound)
         {
-            playerUI.messageLabel.Show("SECRET FOUND!");
-            secterFound = true;
+            UIManager.ShowMessage("SECRET FOUND!");
+            SecterFound = true;
         }
 
         SwitchTimeScale();
@@ -293,36 +295,6 @@ public class Player : MonoBehaviour
     {
        trailRenderer.emitting = false;
     }
-}
-
-[System.Serializable]
-public class PlayerUI : object
-{
-    [Header("Элементы инерфейса")]
-
-    [Tooltip("Блок интерфейса победного экрана")]
-    public GameObject vicrotyUI;
-
-    [Tooltip("Блок интерфейса экрана поражения")]
-    public GameObject defeatUI;
-
-    [Tooltip("Счет игрока")]
-    public Text scoreText;
-
-    [Tooltip("Лучший счет")]
-    public Text highScoreText;
-
-    [Tooltip("Шкала прогресса")]
-    public Slider progressBar;
-
-    [Tooltip("Табличка с номером текущего уровня")]
-    public Text level;
-
-    [Tooltip("Табличка с номером следующего уровня")]
-    public Text nextLevel;
-
-    [Tooltip("Табличка для вывода сообщения")]
-    public MessageLabelUI messageLabel;
 }
 
 
